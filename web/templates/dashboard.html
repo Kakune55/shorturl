@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <!-- 引入Chart.js用于图表显示 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <div class="dashboard-container">
         <header class="dashboard-header">
@@ -85,10 +87,9 @@
                 <div id="stats" class="tab-content">
                     <h2>访问统计</h2>
                     <div class="stats-selector">
-                        <label for="stats-url">选择短链接:</label>
-                        <select id="stats-url">
-                            <option value="">-- 请选择短链接 --</option>
-                        </select>
+                        <label for="stats-search">搜索短链接:</label>
+                        <input type="text" id="stats-search" placeholder="输入短链接或原始URL">
+                        <ul id="stats-options" class="stats-options"></ul>
                     </div>
                     <div id="stats-content">
                         <div class="empty-state">请选择一个短链接查看统计数据</div>
@@ -110,4 +111,5 @@
 
     <script src="/static/js/dashboard.js"></script>
 </body>
+
 </html>

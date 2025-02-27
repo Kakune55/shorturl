@@ -1,16 +1,16 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // 选项卡切换
     const tabs = document.querySelectorAll('.sidebar li');
     const tabContents = document.querySelectorAll('.tab-content');
-    
+
     tabs.forEach(tab => {
-        tab.addEventListener('click', function() {
+        tab.addEventListener('click', function () {
             const tabId = this.getAttribute('data-tab');
-            
+
             // 更新激活的选项卡
             tabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
-            
+
             // 显示对应的内容
             tabContents.forEach(content => {
                 content.classList.remove('active');
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     content.classList.add('active');
                 }
             });
-            
+
             // 如果点击的是"我的链接"选项卡，加载数据
             if (tabId === 'links') {
                 loadUserLinks();
@@ -27,30 +27,33 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
+
     // 退出登录按钮
-    document.getElementById('logoutBtn').addEventListener('click', function() {
+    document.getElementById('logoutBtn').addEventListener('click', function () {
         // 删除认证Cookie
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
         // 重定向到首页
         window.location.href = '/';
     });
-    
+
     // 创建短链接按钮
     document.getElementById('create-btn').addEventListener('click', createShortUrl);
-    
+
     // 初始加载用户链接
     loadUserLinks();
-    
-    // 初始化统计链接选择器
-    document.getElementById('stats-url').addEventListener('change', function() {
-        const shortCode = this.value;
-        if (shortCode) {
-            loadUrlStats(shortCode);
-        }
-    });
 
-    
+    // 初始化统计链接选择器
+    loadUrlSelector();
+
+    // 初始化统计链接选择器（弃用）
+    // document.getElementById('stats-url').addEventListener('change', function() {
+    //     const shortCode = this.value;
+    //     if (shortCode) {
+    //         loadUrlStats(shortCode);
+    //     }
+    // });
+
+
 });
 
 // 获取认证令牌
@@ -72,39 +75,39 @@ function loadUserLinks() {
         window.location.href = '/admin';
         return;
     }
-    
+
     const tableBody = document.getElementById('links-table-body');
     tableBody.innerHTML = '<tr><td colspan="6">正在加载...</td></tr>';
-    
+
     fetch('/api/urls', {
         headers: {
             'Authorization': `Bearer ${token}`
         }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('加载链接失败');
-        }
-        return response.json();
-    })
-    .then(urls => {
-        if (urls.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6">暂无短链接</td></tr>';
-            return;
-        }
-        
-        tableBody.innerHTML = '';
-        urls.forEach(url => {
-            const row = document.createElement('tr');
-            
-            // 格式化日期
-            const createdAt = new Date(url.CreatedAt).toLocaleString();
-            const expiresAt = new Date(url.expires_at).toLocaleString();
-            
-            // 构建短链接URL
-            const shortUrl = window.location.origin + '/' + url.short_code;
-            
-            row.innerHTML = `
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('加载链接失败');
+            }
+            return response.json();
+        })
+        .then(urls => {
+            if (urls.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6">暂无短链接</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = '';
+            urls.forEach(url => {
+                const row = document.createElement('tr');
+
+                // 格式化日期
+                const createdAt = new Date(url.CreatedAt).toLocaleString();
+                const expiresAt = new Date(url.expires_at).toLocaleString();
+
+                // 构建短链接URL
+                const shortUrl = window.location.origin + '/' + url.short_code;
+
+                row.innerHTML = `
                 <td><a href="${shortUrl}" target="_blank">${url.short_code}</a></td>
                 <td><a href="${url.original_url}" target="_blank">${truncateString(url.original_url, 30)}</a></td>
                 <td>${createdAt}</td>
@@ -115,40 +118,40 @@ function loadUserLinks() {
                     <button class="delete-btn" data-code="${url.short_code}">删除</button>
                 </td>
             `;
-            
-            tableBody.appendChild(row);
-        });
-        
-        // 添加统计按钮事件
-        document.querySelectorAll('.stats-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const code = this.getAttribute('data-code');
-                
-                // 切换到统计选项卡
-                document.querySelector('[data-tab="stats"]').click();
-                
-                // 选择对应的URL
-                document.getElementById('stats-url').value = code;
-                
-                // 加载统计数据
-                loadUrlStats(code);
+
+                tableBody.appendChild(row);
             });
-        });
-        
-        // 添加删除按钮事件
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const code = this.getAttribute('data-code');
-                if (confirm('确定要删除此短链接吗？此操作不可恢复。')) {
-                    deleteUrl(code);
-                }
+
+            // 添加统计按钮事件
+            document.querySelectorAll('.stats-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const code = this.getAttribute('data-code');
+
+                    // 切换到统计选项卡
+                    document.querySelector('[data-tab="stats"]').click();
+
+                    // 选择对应的URL
+                    document.getElementById('stats-url').value = code;
+
+                    // 加载统计数据
+                    loadUrlStats(code);
+                });
             });
+
+            // 添加删除按钮事件
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const code = this.getAttribute('data-code');
+                    if (confirm('确定要删除此短链接吗？此操作不可恢复。')) {
+                        deleteUrl(code);
+                    }
+                });
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            tableBody.innerHTML = '<tr><td colspan="6">加载失败，请刷新页面重试</td></tr>';
         });
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        tableBody.innerHTML = '<tr><td colspan="6">加载失败，请刷新页面重试</td></tr>';
-    });
 }
 
 // 加载统计选择器
@@ -158,40 +161,44 @@ function loadUrlSelector() {
         window.location.href = '/admin';
         return;
     }
-    
-    const selector = document.getElementById('stats-url');
-    
+
+    const searchInput = document.getElementById('stats-search');
+    const optionsList = document.getElementById('stats-options');
+
     fetch('/api/urls', {
         headers: {
             'Authorization': `Bearer ${token}`
         }
     })
-    .then(response => response.json())
-    .then(urls => {
-        // 保存当前选择的值
-        const currentValue = selector.value;
-        
-        // 清空选择器（保留第一个选项）
-        while (selector.options.length > 1) {
-            selector.remove(1);
-        }
-        
-        // 添加新选项
-        urls.forEach(url => {
-            const option = document.createElement('option');
-            option.value = url.short_code;
-            option.textContent = `${url.short_code} (${truncateString(url.original_url, 30)})`;
-            selector.appendChild(option);
+        .then(response => response.json())
+        .then(urls => {
+            // 清空下拉列表
+            optionsList.innerHTML = '';
+
+            // 添加事件监听器到搜索框
+            searchInput.addEventListener('input', function () {
+                const query = this.value.toLowerCase();
+                optionsList.innerHTML = '';
+
+                urls.forEach(url => {
+                    if (url.short_code.toLowerCase().includes(query) || url.original_url.toLowerCase().includes(query)) {
+                        const li = document.createElement('li');
+                        li.textContent = `${url.short_code} (${truncateString(url.original_url, 30)})`;
+                        li.setAttribute('data-code', url.short_code);
+                        li.addEventListener('click', function () {
+                            const code = this.getAttribute('data-code');
+                            searchInput.value = `${code} (${truncateString(url.original_url, 30)})`;
+                            optionsList.innerHTML = '';
+                            loadUrlStats(code);
+                        });
+                        optionsList.appendChild(li);
+                    }
+                });
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
         });
-        
-        // 如果之前有选择的值，尝试恢复
-        if (currentValue) {
-            selector.value = currentValue;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
 }
 
 // 优化 loadUrlStats 函数
@@ -201,19 +208,19 @@ function loadUrlStats(shortCode) {
         window.location.href = '/admin';
         return;
     }
-    
+
     const statsContent = document.getElementById('stats-content');
     statsContent.innerHTML = '<div class="loading">加载统计数据...</div>';
-    
+
     fetch(`/api/urls/${shortCode}/stats`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
     })
-    .then(response => response.json())
-    .then(stats => {
-        // 构建统计内容HTML - 使用更好的布局结构
-        let html = `
+        .then(response => response.json())
+        .then(stats => {
+            // 构建统计内容HTML - 使用更好的布局结构
+            let html = `
             <div class="stats-container">
                 <div class="export-container">
                     <button id="export-btn" class="export-btn">导出CSV统计数据</button>
@@ -250,21 +257,21 @@ function loadUrlStats(shortCode) {
                 </div>
             </div>
         `;
-        
-        statsContent.innerHTML = html;
-        
-        // 渲染每日访问趋势图表
-        renderDailyVisitsChart(stats.daily_visits);
-        
-        // 添加导出按钮事件监听
-        document.getElementById('export-btn').addEventListener('click', function() {
-            exportStats(shortCode);
+
+            statsContent.innerHTML = html;
+
+            // 渲染每日访问趋势图表
+            renderDailyVisitsChart(stats.daily_visits);
+
+            // 添加导出按钮事件监听
+            document.getElementById('export-btn').addEventListener('click', function () {
+                exportStats(shortCode);
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            statsContent.innerHTML = '<div class="error-message">加载统计数据失败</div>';
         });
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        statsContent.innerHTML = '<div class="error-message">加载统计数据失败</div>';
-    });
 }
 
 // 修改 renderDailyVisitsChart 函数
@@ -319,14 +326,14 @@ function renderTopReferers(referers) {
     if (!referers || referers.length === 0) {
         return '<p>无来源数据</p>';
     }
-    
+
     let html = '<ul class="stats-list">';
     referers.forEach(referer => {
         const url = referer.url || '直接访问';
         html += `<li><span class="stats-label">${truncateString(url, 30)}</span> <span class="stats-value">${referer.count}</span></li>`;
     });
     html += '</ul>';
-    
+
     return html;
 }
 
@@ -335,13 +342,13 @@ function renderTopUserAgents(userAgents) {
     if (!userAgents || userAgents.length === 0) {
         return '<p>无浏览器/设备数据</p>';
     }
-    
+
     let html = '<ul class="stats-list">';
     userAgents.forEach(ua => {
         html += `<li><span class="stats-label">${truncateString(ua.name, 30)}</span> <span class="stats-value">${ua.count}</span></li>`;
     });
     html += '</ul>';
-    
+
     return html;
 }
 
@@ -353,16 +360,16 @@ function addExportButton(shortCode) {
     exportDiv.innerHTML = `
         <button id="export-btn" class="export-btn">导出CSV统计数据</button>
     `;
-    
+
     statsContent.prepend(exportDiv);
-    
-    document.getElementById('export-btn').addEventListener('click', function() {
+
+    document.getElementById('export-btn').addEventListener('click', function () {
         const token = getAuthToken();
         if (!token) {
             window.location.href = '/admin';
             return;
         }
-        
+
         // 使用window.open直接下载文件
         window.open(`/api/urls/${shortCode}/export?token=${token}`, '_blank');
     });
@@ -375,7 +382,7 @@ function exportStats(shortCode) {
         window.location.href = '/admin';
         return;
     }
-    
+
     // 使用window.open直接下载文件
     window.open(`/api/urls/${shortCode}/export?token=${token}`, '_blank');
 }
@@ -387,27 +394,27 @@ function createShortUrl() {
         window.location.href = '/admin';
         return;
     }
-    
+
     const originalUrl = document.getElementById('create-url').value.trim();
     const expiration = document.getElementById('create-expiration').value;
     const resultDiv = document.getElementById('create-result');
-    
+
     if (!originalUrl) {
         resultDiv.className = 'create-result error';
         resultDiv.textContent = '请输入要缩短的URL';
         return;
     }
-    
+
     // 验证URL格式
     if (!originalUrl.match(/^(http|https):\/\/.+/)) {
         resultDiv.className = 'create-result error';
         resultDiv.textContent = '请输入包含http://或https://的完整URL';
         return;
     }
-    
+
     resultDiv.className = 'create-result';
     resultDiv.textContent = '正在创建...';
-    
+
     fetch('/api/urls', {
         method: 'POST',
         headers: {
@@ -419,43 +426,43 @@ function createShortUrl() {
             expires_in: expiration
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        
-        resultDiv.className = 'create-result success';
-        resultDiv.innerHTML = `
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            resultDiv.className = 'create-result success';
+            resultDiv.innerHTML = `
             <p>短链接已创建成功：</p>
             <p><a href="${data.short_url}" target="_blank">${data.short_url}</a></p>
             <button id="copy-new-url">复制</button>
         `;
-        
-        // 添加复制功能
-        document.getElementById('copy-new-url').addEventListener('click', function() {
-            navigator.clipboard.writeText(data.short_url)
-                .then(() => {
-                    this.textContent = '已复制';
-                    setTimeout(() => {
-                        this.textContent = '复制';
-                    }, 2000);
-                })
-                .catch(err => {
-                    console.error('复制失败:', err);
-                });
+
+            // 添加复制功能
+            document.getElementById('copy-new-url').addEventListener('click', function () {
+                navigator.clipboard.writeText(data.short_url)
+                    .then(() => {
+                        this.textContent = '已复制';
+                        setTimeout(() => {
+                            this.textContent = '复制';
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('复制失败:', err);
+                    });
+            });
+
+            // 重新加载链接列表
+            loadUserLinks();
+            // 更新统计选择器
+            loadUrlSelector();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDiv.className = 'create-result error';
+            resultDiv.textContent = '创建短链接失败: ' + error.message;
         });
-        
-        // 重新加载链接列表
-        loadUserLinks();
-        // 更新统计选择器
-        loadUrlSelector();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        resultDiv.className = 'create-result error';
-        resultDiv.textContent = '创建短链接失败: ' + error.message;
-    });
 }
 
 // 删除URL
@@ -465,29 +472,29 @@ function deleteUrl(shortCode) {
         window.location.href = '/admin';
         return;
     }
-    
+
     fetch(`/api/urls/${shortCode}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`
         }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('删除失败');
-        }
-        return response.json();
-    })
-    .then(data => {
-        // 重新加载链接列表
-        loadUserLinks();
-        // 更新统计选择器
-        loadUrlSelector();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('删除短链接失败，请重试');
-    });
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('删除失败');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // 重新加载链接列表
+            loadUserLinks();
+            // 更新统计选择器
+            loadUrlSelector();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除短链接失败，请重试');
+        });
 }
 
 // 工具函数：截断字符串

@@ -1,5 +1,4 @@
 .dashboard-container {
-    max-width: 1200px;
     margin: 0 auto;
 }
 
@@ -54,7 +53,8 @@
     transition: background-color 0.3s;
 }
 
-.sidebar li:hover, .sidebar li.active {
+.sidebar li:hover,
+.sidebar li.active {
     background-color: #2c3e50;
 }
 
@@ -88,7 +88,8 @@ table {
     border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid #ddd;
@@ -148,7 +149,37 @@ tr:hover {
     padding: 20px;
     background-color: #f7f9fa;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.stats-selector input {
+    padding: 10px;
+    width: 300px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.stats-options {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 150px;
+    overflow-y: auto;
+    background-color: white;
+    position: relative;
+    z-index: 1000;
+}
+
+.stats-options li {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.stats-options li:hover {
+    background-color: #f0f0f0;
 }
 
 .chart-container {
@@ -177,22 +208,21 @@ tr:hover {
     .dashboard-content {
         flex-direction: column;
     }
-    
+
     .sidebar {
         width: 100%;
     }
-    
+
     .sidebar ul {
         display: flex;
         overflow-x: auto;
     }
-    
+
     .sidebar li {
         white-space: nowrap;
     }
 }
 
-/* 添加这些新样式到dashboard.css文件末尾 */
 /* 优化统计页面布局 */
 .stats-content {
     display: flex;
@@ -225,8 +255,10 @@ tr:hover {
 
 .daily-chart {
     height: 300px;
-    position: relative; /* 添加定位上下文 */
-    margin-bottom: 30px; /* 增加底部间距 */
+    position: relative;
+    /* 添加定位上下文 */
+    margin-bottom: 30px;
+    /* 增加底部间距 */
 }
 
 .stats-details {
@@ -270,7 +302,8 @@ tr:hover {
 #dailyVisitsChart {
     width: 100% !important;
     height: 250px !important;
-    max-height: 250px !important; /* 强制最大高度 */
+    max-height: 250px !important;
+    /* 强制最大高度 */
 }
 
 /* 响应式布局调整 */
@@ -278,14 +311,16 @@ tr:hover {
     .stats-details {
         flex-direction: column;
     }
-    
+
     .stats-details .stat-card {
         min-width: 100%;
     }
 }
 
 /* 改进加载和错误状态显示 */
-.loading, .error-message, .empty-state {
+.loading,
+.error-message,
+.empty-state {
     padding: 20px;
     text-align: center;
     background-color: #f7f9fa;
@@ -310,7 +345,8 @@ tr:hover {
 .stats-charts-container {
     width: 100%;
     height: auto;
-    overflow: hidden; /* 防止内容溢出 */
+    overflow: hidden;
+    /* 防止内容溢出 */
 }
 
 /* 确保图表容器有固定高度 */

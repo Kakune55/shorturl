@@ -1,20 +1,20 @@
 # ShortURL 系统
 
-一个高性能的短链接系统，支持多种部署模式和可选的Redis缓存加速。
+一个高性能的短链接系统，支持多种部署模式和可选的 Redis 缓存加速。
 
 ## 功能特点
 
-- 支持Lite模式(SQLite)和标准模式(PostgreSQL)
-- 可选的Redis缓存加速
-- RESTful API管理接口
-- Web管理界面，带有用户认证
+- 支持 Lite 模式(SQLite)和标准模式(PostgreSQL)
+- 可选的 Redis 缓存加速
+- RESTful API 管理接口
+- Web 管理界面，带有用户认证
 - 访问统计与分析
-- 高性能302重定向
+- 高性能 302 重定向
 
 ## 技术栈
 
-- **Web框架**: Gin (最新版本)
-- **ORM**: GORM (最新版本) 
+- **Web 框架**: Gin (最新版本)
+- **ORM**: GORM (最新版本)
 - **数据库**: SQLite / PostgreSQL
 - **缓存**: Redis (可选)
 - **配置管理**: Viper
@@ -25,8 +25,9 @@
 ### 前提条件
 
 - Go 1.19+
-- 对于标准模式: PostgreSQL 
-- 对于缓存加速: Redis
+- 对于 Lite 模式: SQLite(内置)
+- 对于标准模式: PostgreSQL
+- 对于缓存加速: SQLite/PostgreSQL + Redis
 
 ### 快速开始
 
@@ -88,9 +89,9 @@ make build
 ./shorturl
 ```
 
-### Docker部署
+### Docker 部署
 
-1. 构建Docker镜像
+1. 构建 Docker 镜像
 
 ```bash
 make docker
@@ -102,33 +103,9 @@ make docker
 make docker-run
 ```
 
-## API文档
+## API 文档
 
-### 公共API（无需认证）
-
-#### 创建短链接
-
-```
-POST /api/urls
-```
-
-请求体:
-```json
-{
-  "original_url": "https://example.com/very/long/url/that/needs/to/be/shortened",
-  "expires_in": "24h" // 可选, 支持格式: "24h", "7d", "30d", "365d"
-}
-```
-
-响应:
-```json
-{
-  "short_code": "abc123",
-  "original_url": "https://example.com/very/long/url/that/needs/to/be/shortened",
-  "short_url": "http://localhost:8080/abc123",
-  "expires_at": "2023-12-31T23:59:59Z"
-}
-```
+### 公共 API（无需认证）
 
 #### 用户注册
 
@@ -137,6 +114,7 @@ POST /api/auth/register
 ```
 
 请求体:
+
 ```json
 {
   "username": "newuser",
@@ -152,6 +130,7 @@ POST /api/auth/login
 ```
 
 请求体:
+
 ```json
 {
   "username": "newuser",
@@ -160,6 +139,7 @@ POST /api/auth/login
 ```
 
 响应:
+
 ```json
 {
   "message": "登录成功",
@@ -167,9 +147,36 @@ POST /api/auth/login
 }
 ```
 
-### 认证API（需要认证）
+### 认证 API（需要认证）
 
-需要在请求头中添加 `Authorization: Bearer <token>`。
+需要在请求头中添加 `Authorization: Bearer <token>`。  
+或者使用GET参数 `token = <token>`
+
+#### 创建短链接
+
+```
+POST /api/urls
+```
+
+请求体:
+
+```json
+{
+  "original_url": "https://example.com/very/long/url/that/needs/to/be/shortened",
+  "expires_in": "24h" // 可选, 支持格式: "24h", "7d", "30d", "365d"
+}
+```
+
+响应:
+
+```json
+{
+  "short_code": "abc123",
+  "original_url": "https://example.com/very/long/url/that/needs/to/be/shortened",
+  "short_url": "http://localhost:8080/abc123",
+  "expires_at": "2023-12-31T23:59:59Z"
+}
+```
 
 #### 获取用户短链接
 
@@ -202,9 +209,9 @@ GET /api/urls/:code/stats
 
 短链接系统为高性能设计，特别是在重定向路径上:
 
-1. **异步统计记录**: 访问统计使用goroutines异步处理，不影响重定向速度
-2. **Redis缓存**: 启用Redis后，热门链接会缓存在内存中，显著减少数据库查询
-3. **302临时重定向**: 使用302重定向允许未来更改目标URL
+1. **异步统计记录**: 访问统计使用 goroutines 异步处理，不影响重定向速度
+2. **Redis 缓存**: 启用 Redis 后，热门链接会缓存在内存中，显著减少数据库查询
+3. **302 临时重定向**: 使用 302 重定向允许未来更改目标 URL
 
 ## 贡献
 
