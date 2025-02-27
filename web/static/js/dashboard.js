@@ -49,6 +49,8 @@ document.addEventListener('DOMContentLoaded', function() {
             loadUrlStats(shortCode);
         }
     });
+
+    
 });
 
 // 获取认证令牌
@@ -96,7 +98,7 @@ function loadUserLinks() {
             const row = document.createElement('tr');
             
             // 格式化日期
-            const createdAt = new Date(url.created_at).toLocaleString();
+            const createdAt = new Date(url.CreatedAt).toLocaleString();
             const expiresAt = new Date(url.expires_at).toLocaleString();
             
             // 构建短链接URL
@@ -104,7 +106,7 @@ function loadUserLinks() {
             
             row.innerHTML = `
                 <td><a href="${shortUrl}" target="_blank">${url.short_code}</a></td>
-                <td><a href="${url.original_url}" target="_blank">${truncateString(url.original_url, 50)}</a></td>
+                <td><a href="${url.original_url}" target="_blank">${truncateString(url.original_url, 30)}</a></td>
                 <td>${createdAt}</td>
                 <td>${expiresAt}</td>
                 <td>${url.visits}</td>
@@ -192,7 +194,7 @@ function loadUrlSelector() {
     });
 }
 
-// 加载URL统计
+// 优化 loadUrlStats 函数
 function loadUrlStats(shortCode) {
     const token = getAuthToken();
     if (!token) {
@@ -210,32 +212,40 @@ function loadUrlStats(shortCode) {
     })
     .then(response => response.json())
     .then(stats => {
-        // 构建统计内容HTML
+        // 构建统计内容HTML - 使用更好的布局结构
         let html = `
-            <div class="stats-summary">
-                <div class="stat-card">
-                    <h3>总访问量</h3>
-                    <div class="stat-value">${stats.total_visits}</div>
-                </div>
-            </div>
-            
-            <div class="stats-charts">
-                <div class="stat-card">
-                    <h3>每日访问趋势</h3>
-                    <canvas id="dailyVisitsChart"></canvas>
+            <div class="stats-container">
+                <div class="export-container">
+                    <button id="export-btn" class="export-btn">导出CSV统计数据</button>
                 </div>
                 
-                <div class="stat-card">
-                    <h3>主要来源网站</h3>
-                    <div id="topReferers">
-                        ${renderTopReferers(stats.top_referers)}
+                <div class="stats-summary">
+                    <div class="stat-card">
+                        <h3>总访问量</h3>
+                        <div class="stat-value">${stats.total_visits || 0}</div>
                     </div>
                 </div>
                 
-                <div class="stat-card">
-                    <h3>主要浏览器/设备</h3>
-                    <div id="topUserAgents">
-                        ${renderTopUserAgents(stats.top_user_agents)}
+                <div class="stats-charts-container">
+                    <div class="stat-card daily-chart">
+                        <h3>每日访问趋势</h3>
+                        <canvas id="dailyVisitsChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="stats-details">
+                    <div class="stat-card">
+                        <h3>主要来源网站</h3>
+                        <div id="topReferers">
+                            ${renderTopReferers(stats.top_referers)}
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h3>主要浏览器/设备</h3>
+                        <div id="topUserAgents">
+                            ${renderTopUserAgents(stats.top_user_agents)}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -243,11 +253,13 @@ function loadUrlStats(shortCode) {
         
         statsContent.innerHTML = html;
         
-        // 添加导出按钮
-        addExportButton(shortCode);
-        
         // 渲染每日访问趋势图表
         renderDailyVisitsChart(stats.daily_visits);
+        
+        // 添加导出按钮事件监听
+        document.getElementById('export-btn').addEventListener('click', function() {
+            exportStats(shortCode);
+        });
     })
     .catch(error => {
         console.error('Error:', error);
@@ -255,21 +267,27 @@ function loadUrlStats(shortCode) {
     });
 }
 
-// 渲染每日访问趋势图表
+// 修改 renderDailyVisitsChart 函数
 function renderDailyVisitsChart(dailyVisits) {
     if (!dailyVisits || dailyVisits.length === 0) {
         return;
     }
-    
-    const ctx = document.getElementById('dailyVisitsChart').getContext('2d');
-    
+
+    const canvas = document.getElementById('dailyVisitsChart');
+    const ctx = canvas.getContext('2d');
+
+    // 清除可能存在的旧图表
+    if (window.dailyChart) {
+        window.dailyChart.destroy();
+    }
+
     // 排序数据按日期
     dailyVisits.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     const labels = dailyVisits.map(item => item.date);
     const data = dailyVisits.map(item => item.count);
-    
-    new Chart(ctx, {
+
+    window.dailyChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -348,6 +366,18 @@ function addExportButton(shortCode) {
         // 使用window.open直接下载文件
         window.open(`/api/urls/${shortCode}/export?token=${token}`, '_blank');
     });
+}
+
+// 导出统计数据函数
+function exportStats(shortCode) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/admin';
+        return;
+    }
+    
+    // 使用window.open直接下载文件
+    window.open(`/api/urls/${shortCode}/export?token=${token}`, '_blank');
 }
 
 // 创建短链接
