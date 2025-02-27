@@ -1,0 +1,29 @@
+server:
+  port: 8080
+  host: 0.0.0.0
+  base_url: "http://localhost:8080"
+
+database:
+  # 可选 sqlite 或 postgres
+  type: postgres
+  # SQLite配置
+  path: "./data/shorturl.db"
+  # PostgreSQL配置
+  host: 192.168.5.10
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: shorturl
+  sslmode: disable
+
+redis:
+  enabled: true
+  host: 192.168.5.10
+  port: 6379
+  password: ""
+  db: 0
+  max_memory: "100MB"
+
+auth:
+  secret_key: "your-secret-key-change-this"
+  expires: 24  # hours

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }} - 仪表板</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <!-- 引入Chart.js用于图表显示 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>短链接管理系统</h1>
+            <div class="user-info">
+                <span>欢迎，{{ .user.Username }}</span>
+                <button id="logoutBtn" class="btn">退出登录</button>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <nav class="sidebar">
+                <ul>
+                    <li data-tab="links" class="active">我的链接</li>
+                    <li data-tab="create">创建短链接</li>
+                    <li data-tab="stats">统计数据</li>
+                    {{ if .user.IsAdmin }}
+                    <li data-tab="admin">管理员面板</li>
+                    {{ end }}
+                </ul>
+            </nav>
+
+            <main class="content">
+                <!-- 我的链接选项卡 -->
+                <div id="links" class="tab-content active">
+                    <h2>我的链接</h2>
+                    <div class="links-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>短链接</th>
+                                    <th>原始链接</th>
+                                    <th>创建时间</th>
+                                    <th>过期时间</th>
+                                    <th>访问次数</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="links-table-body">
+                                <tr>
+                                    <td colspan="6">加载中...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 创建短链接选项卡 -->
+                <div id="create" class="tab-content">
+                    <h2>创建短链接</h2>
+                    <div class="create-form">
+                        <div class="form-group">
+                            <label for="create-url">原始URL</label>
+                            <input type="url" id="create-url" placeholder="请输入完整URL，包括http://或https://" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="create-expiration">过期时间</label>
+                            <select id="create-expiration">
+                                <option value="24h">24小时</option>
+                                <option value="7d">7天</option>
+                                <option value="30d">30天</option>
+                                <option value="90d">90天</option>
+                                <option value="365d" selected>1年</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button id="create-btn" class="btn">创建短链接</button>
+                        </div>
+                        <div id="create-result" class="create-result"></div>
+                    </div>
+                </div>
+
+                <!-- 统计数据选项卡 -->
+                <div id="stats" class="tab-content">
+                    <h2>访问统计</h2>
+                    <div class="stats-selector">
+                        <label for="stats-url">选择短链接:</label>
+                        <select id="stats-url">
+                            <option value="">-- 请选择短链接 --</option>
+                        </select>
+                    </div>
+                    <div id="stats-content">
+                        <div class="empty-state">请选择一个短链接查看统计数据</div>
+                    </div>
+                </div>
+
+                <!-- 管理员面板选项卡 -->
+                {{ if .user.IsAdmin }}
+                <div id="admin" class="tab-content">
+                    <h2>管理员面板</h2>
+                    <div class="admin-stats">
+                        <p>此功能正在开发中...</p>
+                    </div>
+                </div>
+                {{ end }}
+            </main>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
