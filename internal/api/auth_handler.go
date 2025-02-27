@@ -83,6 +83,9 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if (authHeader == "") {
+			authHeader = c.Query("token")
+		}
+		if (authHeader == "") {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供认证令牌"})
 			c.Abort()
 			return

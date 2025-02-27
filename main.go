@@ -96,7 +96,6 @@ func main() {
 	// 公共API
 	public := router.Group("/api")
 	{
-		public.POST("/urls", urlHandler.CreateURL) // 允许匿名创建短链接
 		public.POST("/auth/register", authHandler.Register)
 		public.POST("/auth/login", authHandler.Login)
 	}
@@ -105,6 +104,7 @@ func main() {
 	authorized := router.Group("/api")
 	authorized.Use(authHandler.AuthMiddleware())
 	{
+		authorized.POST("/urls", urlHandler.CreateURL) // 允许匿名创建短链接
 		authorized.GET("/urls", urlHandler.GetURLs)
 		authorized.DELETE("/urls/:code", urlHandler.DeleteURL)
 		authorized.GET("/urls/:code/stats", urlHandler.GetURLStats)
