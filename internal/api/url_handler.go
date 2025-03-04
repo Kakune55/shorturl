@@ -154,3 +154,15 @@ func (h *URLHandler) GetURLStats(c *gin.Context) {
 	
 	c.JSON(http.StatusOK, stats)
 }
+
+
+// CleanupExpiredURLs 清理过期的短链接
+func (h *URLHandler) CleanupExpiredURLs(c *gin.Context) {
+	message, err := h.urlService.CleanupExpiredURLs(c.Request.Context())
+	if err != nil {
+		logrus.Errorf("清理过期短链接失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": message})
+		return
+	}
+	c.JSON(http.StatusOK, message)
+}

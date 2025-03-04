@@ -61,3 +61,9 @@ type UserAgent struct {
 	Name  string `json:"name"`
 	Count int64  `json:"count"`
 }
+
+
+// Message 表示消息
+type Message struct {
+	Content string `gorm:"size:2048;not null" json:"content"`
+}

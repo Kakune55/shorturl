@@ -17,10 +17,10 @@ import (
 )
 
 const (
-	urlCachePrefix = "url:"
+	urlCachePrefix   = "url:"
 	statsCachePrefix = "stats:"
-	urlTTL = time.Hour * 24
-	statsTTL = time.Hour
+	urlTTL           = time.Hour * 24
+	statsTTL         = time.Hour
 )
 
 // URLService 短链接服务接口
@@ -31,6 +31,7 @@ type URLService interface {
 	DeleteURL(ctx context.Context, shortCode string, userID uint) error
 	GetURLsByUser(ctx context.Context, userID uint) ([]*model.URL, error)
 	GetURLStats(ctx context.Context, shortCode string) (*model.Stats, error)
+	CleanupExpiredURLs(ctx context.Context) (*model.Message, error)
 }
 
 type urlService struct {
@@ -50,24 +51,24 @@ func NewURLService(db *gorm.DB, cache cache.RedisClient) URLService {
 func (s *urlService) CreateShortURL(ctx context.Context, originalURL string, userID uint, expiration time.Duration) (*model.URL, error) {
 	// 生成短码
 	shortCode := s.generateShortCode(originalURL)
-	
+
 	// 检查短码是否已存在
 	var count int64
 	if err := s.db.Model(&model.URL{}).Where("short_code = ?", shortCode).Count(&count).Error; err != nil {
 		return nil, fmt.Errorf("检查短码失败: %v", err)
 	}
-	
+
 	// 如果短码已存在，添加随机字符
 	if count > 0 {
 		shortCode = shortCode[:len(shortCode)-1] + s.randomChar()
 	}
-	
+
 	// 设置过期时间
 	expiresAt := time.Now().Add(expiration)
 	if expiration == 0 {
 		expiresAt = time.Now().AddDate(1, 0, 0) // 默认1年
 	}
-	
+
 	// 创建短链接记录
 	url := &model.URL{
 		ShortCode:   shortCode,
@@ -75,11 +76,11 @@ func (s *urlService) CreateShortURL(ctx context.Context, originalURL string, use
 		UserID:      userID,
 		ExpiresAt:   expiresAt,
 	}
-	
+
 	if err := s.db.Create(url).Error; err != nil {
 		return nil, fmt.Errorf("创建短链接失败: %v", err)
 	}
-	
+
 	// 缓存短链接
 	if s.cache.Enabled() {
 		cacheKey := urlCachePrefix + shortCode
@@ -87,7 +88,7 @@ func (s *urlService) CreateShortURL(ctx context.Context, originalURL string, use
 			logrus.Warnf("缓存短链接失败: %v", err)
 		}
 	}
-	
+
 	return url, nil
 }
 
@@ -100,7 +101,7 @@ func (s *urlService) GetOriginalURL(ctx context.Context, shortCode string) (stri
 			return originalURL, nil
 		}
 	}
-	
+
 	// 从数据库获取
 	var url model.URL
 	if err := s.db.Where("short_code = ? AND expires_at > ?", shortCode, time.Now()).First(&url).Error; err != nil {
@@ -109,7 +110,7 @@ func (s *urlService) GetOriginalURL(ctx context.Context, shortCode string) (stri
 		}
 		return "", fmt.Errorf("获取短链接失败: %v", err)
 	}
-	
+
 	// 写入缓存
 	if s.cache.Enabled() {
 		cacheKey := urlCachePrefix + shortCode
@@ -121,7 +122,7 @@ func (s *urlService) GetOriginalURL(ctx context.Context, shortCode string) (stri
 			logrus.Warnf("缓存短链接失败: %v", err)
 		}
 	}
-	
+
 	return url.OriginalURL, nil
 }
 
@@ -140,27 +141,27 @@ func (s *urlService) TrackVisit(ctx context.Context, shortCode, ip, userAgent, r
 		if s.cache.Enabled() {
 			_, err = s.cache.Incr(context.Background(), statsCachePrefix+shortCode)
 		}
-		
+
 		// 如果Redis不可用或操作失败，直接更新数据库
 		if !s.cache.Enabled() || err != nil {
 			s.db.Model(&model.URL{}).Where("id = ?", urlID).
 				UpdateColumn("visits", gorm.Expr("visits + ?", 1))
 		}
-		
+
 		// 记录详细的访问信息
 		visit := model.URLVisit{
-			URLID:     urlID,
-			IP:        ip,
-			UserAgent: userAgent,
+			URLID:      urlID,
+			IP:         ip,
+			UserAgent:  userAgent,
 			RefererURL: referer,
-			CreatedAt: time.Now(),
+			CreatedAt:  time.Now(),
 		}
-		
+
 		if err := s.db.Create(&visit).Error; err != nil {
 			logrus.Errorf("记录访问失败: %v", err)
 		}
 	}(url.ID, ip, userAgent, referer)
-	
+
 	return nil
 }
 
@@ -170,11 +171,11 @@ func (s *urlService) DeleteURL(ctx context.Context, shortCode string, userID uin
 	if result.Error != nil {
 		return fmt.Errorf("删除短链接失败: %v", result.Error)
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("短链接不存在或无权删除")
 	}
-	
+
 	// 删除缓存
 	if s.cache.Enabled() {
 		cacheKey := urlCachePrefix + shortCode
@@ -183,7 +184,7 @@ func (s *urlService) DeleteURL(ctx context.Context, shortCode string, userID uin
 		}
 		s.cache.Del(ctx, statsCachePrefix+shortCode)
 	}
-	
+
 	return nil
 }
 
@@ -202,7 +203,7 @@ func (s *urlService) GetURLStats(ctx context.Context, shortCode string) (*model.
 	if err := s.db.Where("short_code = ?", shortCode).First(&url).Error; err != nil {
 		return nil, fmt.Errorf("获取短链接信息失败: %v", err)
 	}
-	
+
 	// 检查缓存中是否有计数器更新
 	if s.cache.Enabled() {
 		if cachedVisits, err := s.cache.Get(ctx, statsCachePrefix+shortCode); err == nil {
@@ -212,7 +213,7 @@ func (s *urlService) GetURLStats(ctx context.Context, shortCode string) (*model.
 			url.Visits += additionalVisits
 		}
 	}
-	
+
 	// 获取每日访问统计
 	var dailyVisits []model.DailyVisit
 	s.db.Raw(`
@@ -224,7 +225,7 @@ func (s *urlService) GetURLStats(ctx context.Context, shortCode string) (*model.
 		GROUP BY DATE(created_at) 
 		ORDER BY date DESC 
 		LIMIT 30`, url.ID).Scan(&dailyVisits)
-	
+
 	// 获取来源网站统计
 	var topReferers []model.Referer
 	s.db.Raw(`
@@ -236,7 +237,7 @@ func (s *urlService) GetURLStats(ctx context.Context, shortCode string) (*model.
 		GROUP BY referer_url 
 		ORDER BY count DESC 
 		LIMIT 10`, url.ID).Scan(&topReferers)
-	
+
 	// 获取用户代理统计
 	var topUserAgents []model.UserAgent
 	s.db.Raw(`
@@ -248,7 +249,7 @@ func (s *urlService) GetURLStats(ctx context.Context, shortCode string) (*model.
 		GROUP BY user_agent 
 		ORDER BY count DESC 
 		LIMIT 10`, url.ID).Scan(&topUserAgents)
-	
+
 	// 构建统计结果
 	stats := &model.Stats{
 		DailyVisits:   dailyVisits,
@@ -256,7 +257,7 @@ func (s *urlService) GetURLStats(ctx context.Context, shortCode string) (*model.
 		TopReferers:   topReferers,
 		TopUserAgents: topUserAgents,
 	}
-	
+
 	return stats, nil
 }
 
@@ -265,13 +266,13 @@ func (s *urlService) generateShortCode(url string) string {
 	// 添加时间戳使相同URL也能生成不同短码
 	data := url + time.Now().String()
 	hash := md5.Sum([]byte(data))
-	
+
 	// 使用base64编码，移除可能引起混淆的字符
 	encoded := base64.StdEncoding.EncodeToString(hash[:])
 	encoded = strings.ReplaceAll(encoded, "+", "")
 	encoded = strings.ReplaceAll(encoded, "/", "")
 	encoded = strings.ReplaceAll(encoded, "=", "")
-	
+
 	// 取前6位作为短码
 	return encoded[:6]
 }
@@ -280,4 +281,16 @@ func (s *urlService) generateShortCode(url string) string {
 func (s *urlService) randomChar() string {
 	chars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	return string(chars[rand.Intn(len(chars))])
+}
+
+// 清理过期URL
+func (s *urlService) CleanupExpiredURLs(ctx context.Context) (*model.Message, error) {
+	result := s.db.Where("expires_at < ?", time.Now()).Delete(&model.URL{})
+	if result.Error != nil {
+		errorMessage := fmt.Sprintf("清理过期URL失败: %v", result.Error)
+		return &model.Message{Content: errorMessage}, fmt.Errorf("%s", errorMessage)
+	}
+
+	logrus.Infof("已清理 %d 条过期短链接", result.RowsAffected)
+	return &model.Message{Content: "成功清理过期短链接"}, nil
 }

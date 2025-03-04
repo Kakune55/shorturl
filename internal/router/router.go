@@ -48,6 +48,7 @@ func Setup(urlService service.URLService, authService service.AuthService) *gin.
         authorized.DELETE("/urls/:code", urlHandler.DeleteURL)
         authorized.GET("/urls/:code/stats", urlHandler.GetURLStats)
         authorized.GET("/urls/:code/export", statsHandler.ExportStats)
+        authorized.POST("/urls/cleanup", urlHandler.CleanupExpiredURLs)
     }
 
     // 管理员API
