@@ -10,16 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"shorturl/config"
-	"shorturl/internal/api"
 	"shorturl/internal/cache"
 	"shorturl/internal/db"
 	"shorturl/internal/model"
+	"shorturl/internal/router"
 	"shorturl/internal/service"
 )
 
@@ -73,82 +72,26 @@ func main() {
 	urlService := service.NewURLService(database, redisClient)
 	authService := service.NewAuthService(database, cfg)
 
-	// 初始化处理器
-	urlHandler := api.NewURLHandler(urlService)
-	authHandler := api.NewAuthHandler(authService)
-	statsHandler := api.NewStatsHandler(urlService)
-
-	// 设置Gin模式
-	if gin.Mode() != gin.ReleaseMode {
-		gin.SetMode(gin.DebugMode)
-	}
-
-	// 创建Gin路由
-	router := gin.Default()
-
-	// 加载模板
-	router.LoadHTMLGlob("web/templates/*")
-	router.Static("/static", "web/static")
-
-	// 短链接重定向路由
-	router.GET("/:code", urlHandler.RedirectURL)
-
-	// 公共API
-	public := router.Group("/api")
-	{
-		public.POST("/auth/register", authHandler.Register)
-		public.POST("/auth/login", authHandler.Login)
-	}
-
-	// 需要认证的API
-	authorized := router.Group("/api")
-	authorized.Use(authHandler.AuthMiddleware())
-	{
-		authorized.POST("/urls", urlHandler.CreateURL) // 允许匿名创建短链接
-		authorized.GET("/urls", urlHandler.GetURLs)
-		authorized.DELETE("/urls/:code", urlHandler.DeleteURL)
-		authorized.GET("/urls/:code/stats", urlHandler.GetURLStats)
-		authorized.GET("/urls/:code/export", statsHandler.ExportStats) // 添加导出功能
-	}
-
-	// 管理员API
-	admin := router.Group("/api/admin")
-	admin.Use(authHandler.AuthMiddleware(), authHandler.AdminMiddleware())
-	{
-		// 这里可以添加管理员特有的API
-	}
-
-	// Web界面路由
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"title": "短链接服务",
-		})
-	})
-
-	router.GET("/admin", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "login.html", gin.H{
-			"title": "管理员登录",
-		})
-	})
-
-	router.GET("/dashboard", authHandler.WebAuthMiddleware(), func(c *gin.Context) {
-		c.HTML(http.StatusOK, "dashboard.html", gin.H{
-			"title": "管理仪表盘",
-			"user":  c.MustGet("user").(*model.User),
-		})
-	})
-
 	// 添加默认管理员（如果不存在）
 	createDefaultAdmin(database)
+	
+	// 设置路由
+	r := router.Setup(urlService, authService)
 
 	// 启动HTTP服务器
 	serverAddr := cfg.Server.Host + ":" + strconv.Itoa(cfg.Server.Port)
 	server := &http.Server{
 		Addr:    serverAddr,
-		Handler: router,
+		Handler: r,
 	}
 
-	// 优雅关闭
+	// 启动服务器并设置优雅关闭
+	startServerWithGracefulShutdown(server, serverAddr)
+}
+
+// 启动服务器并处理优雅关闭
+func startServerWithGracefulShutdown(server *http.Server, serverAddr string) {
+	// 在goroutine中启动服务器
 	go func() {
 		logrus.Infof("服务器启动在 %s", serverAddr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -156,7 +99,7 @@ func main() {
 		}
 	}()
 
-	// 等待中断信号优雅地关闭服务器
+	// 等待中断信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
