@@ -74,9 +74,9 @@ func main() {
 
 	// 添加默认管理员（如果不存在）
 	createDefaultAdmin(database)
-	
+
 	// 设置路由
-	r := router.Setup(urlService, authService)
+	r := router.Setup(urlService, authService, database)
 
 	// 启动HTTP服务器
 	serverAddr := cfg.Server.Host + ":" + strconv.Itoa(cfg.Server.Port)

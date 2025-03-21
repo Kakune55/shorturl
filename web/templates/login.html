@@ -4,56 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ .title }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>管理员登录</h1>
-        </header>
-        
-        <main>
-            <div class="login-form">
-                <div class="form-group">
-                    <label for="username">用户名</label>
-                    <input type="text" id="username" placeholder="请输入用户名">
-                </div>
-                <div class="form-group">
-                    <label for="password">密码</label>
-                    <input type="password" id="password" placeholder="请输入密码">
-                </div>
-                <button id="loginBtn">登录</button>
-                <p id="error-message" class="error"></p>
-                <p class="register-link">还没有账号？ <a href="#" id="showRegister">注册</a></p>
+    <header>
+        <div class="container">
+            <div class="logo">
+                <i class="bx bx-link-alt" style="font-size: 2rem; color: var(--primary-color);"></i>
+                <h1>短链接服务</h1>
             </div>
-            
-            <div class="register-form" style="display: none;">
-                <div class="form-group">
-                    <label for="reg-username">用户名</label>
-                    <input type="text" id="reg-username" placeholder="请输入用户名">
+            <nav>
+                <a href="/">首页</a>
+                <a href="/admin" class="active">登录</a>
+            </nav>
+        </div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <div class="auth-container">
+                <div class="card" id="login-card">
+                    <div class="card-header">
+                        <h2>用户登录</h2>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" class="form-control" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input type="password" id="password" class="form-control" placeholder="请输入密码">
+                    </div>
+                    <div class="form-group">
+                        <button id="loginBtn" class="btn btn-primary btn-block">登录</button>
+                    </div>
+                    <p id="error-message" class="error text-center"></p>
+                    
+                    <div class="auth-toggle">
+                        <p>还没有账号？<a href="#" id="showRegister">立即注册</a></p>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="reg-email">电子邮箱</label>
-                    <input type="email" id="reg-email" placeholder="请输入电子邮箱">
+                
+                <div class="card" id="register-card" style="display: none;">
+                    <div class="card-header">
+                        <h2>用户注册</h2>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reg-username">用户名</label>
+                        <input type="text" id="reg-username" class="form-control" placeholder="请设置用户名 (至少3个字符)">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-email">电子邮箱</label>
+                        <input type="email" id="reg-email" class="form-control" placeholder="请输入您的电子邮箱">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">密码</label>
+                        <input type="password" id="reg-password" class="form-control" placeholder="请设置密码 (至少6个字符)">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password-confirm">确认密码</label>
+                        <input type="password" id="reg-password-confirm" class="form-control" placeholder="请再次输入密码">
+                    </div>
+                    <div class="form-group">
+                        <button id="registerBtn" class="btn btn-primary btn-block">注册</button>
+                    </div>
+                    <p id="reg-error-message" class="error text-center"></p>
+                    
+                    <div class="auth-toggle">
+                        <p>已有账号？<a href="#" id="showLogin">登录</a></p>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="reg-password">密码</label>
-                    <input type="password" id="reg-password" placeholder="请输入密码">
-                </div>
-                <div class="form-group">
-                    <label for="reg-password-confirm">确认密码</label>
-                    <input type="password" id="reg-password-confirm" placeholder="请再次输入密码">
-                </div>
-                <button id="registerBtn">注册</button>
-                <p id="reg-error-message" class="error"></p>
-                <p class="login-link">已有账号？ <a href="#" id="showLogin">登录</a></p>
             </div>
-        </main>
-        
-        <footer>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
             <p>©2023 短链接服务 | <a href="/">返回首页</a></p>
-        </footer>
-    </div>
+        </div>
+    </footer>
+    
+    <div class="notifications" id="notifications"></div>
     
     <script src="/static/js/auth.js"></script>
 </body>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }} - 高性能短链接服务</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .hero {
+            background: linear-gradient(135deg, #3498db, #2c3e50);
+            color: white;
+            padding: 80px 0;
+            margin-bottom: 60px;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto 30px;
+            opacity: 0.9;
+        }
+        
+        .url-shortener {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            padding: 30px;
+            max-width: 800px;
+            margin: -80px auto 60px;
+            position: relative;
+        }
+        
+        .url-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .url-form {
+                flex-direction: column;
+            }
+            
+            .url-form .form-control, 
+            .url-form select, 
+            .url-form .btn {
+                width: 100%;
+            }
+        }
+        
+        .features {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .feature-card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 30px;
+            transition: var(--transition);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--secondary-color);
+        }
+        
+        .cta {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+        }
+        
+        .cta h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .cta p {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto 30px;
+            opacity: 0.9;
+        }
+        
+        .cta .btn {
+            margin: 0 10px;
+        }
+        
+        .short-url-result {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .result-box {
+            background-color: #f8f9fa;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .result-box a {
+            font-size: 1.1rem;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .expires-info {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">
+                <i class="bx bx-link-alt" style="font-size: 2rem; color: var(--primary-color);"></i>
+                <h1>短链接服务</h1>
+            </div>
+            <nav>
+                <a href="/" class="active">首页</a>
+                <a href="/dashboard">仪表板</a>
+                <a href="/admin">登录</a>
+            </nav>
+        </div>
+    </header>
+    
+    <section class="hero">
+        <div class="container">
+            <h1>简化您的链接</h1>
+            <p>使用我们的高性能短链接服务，轻松创建简短、易于共享的URL</p>
+        </div>
+    </section>
+    
+    <main>
+        <div class="container">
+            <div class="url-shortener">
+                <h2 class="text-center mb-4">创建一个短链接</h2>
+                <div class="url-form">
+                    <input type="url" id="originalUrl" class="form-control" placeholder="请输入您的长URL (包含http://或https://)" required>
+                    <select id="expiration" class="form-control">
+                        <option value="24h">24小时</option>
+                        <option value="168h" selected>7天</option>
+                        <option value="720h">30天</option>
+                        <option value="2160h">90天</option>
+                        <option value="8640h">1年</option>
+                    </select>
+                    <button id="generateBtn" class="btn btn-primary">生成短链接</button>
+                </div>
+                
+                <div id="result" class="short-url-result">
+                    <div class="result-box">
+                        <a id="shortUrl" href="#" target="_blank"></a>
+                        <button id="copyBtn" class="btn btn-outline-primary btn-sm">复制</button>
+                    </div>
+                    <p class="expires-info">链接过期时间: <span id="expiresAt"></span></p>
+                </div>
+            </div>
+            
+            <div class="features">
+                <h2>为什么选择我们的短链接服务？</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="bx bx-timer feature-icon"></i>
+                        <h3 class="feature-title">高性能</h3>
+                        <p>基于Go语言和Redis缓存系统实现的高性能重定向，确保链接访问速度快如闪电。</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="bx bx-bar-chart-alt-2 feature-icon"></i>
+                        <h3 class="feature-title">详细统计</h3>
+                        <p>全面的链接点击统计分析，包括访问量、来源网站、设备和浏览器数据。</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="bx bx-lock-alt feature-icon"></i>
+                        <h3 class="feature-title">安全可靠</h3>
+                        <p>保障您的链接安全，防止滥用，且拥有链接过期机制，更好地控制内容访问。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="cta">
+            <div class="container">
+                <h2>需要更多功能？</h2>
+                <p>注册账户以获取更多高级功能，包括链接管理、数据导出和更多自定义选项。</p>
+                <a href="/admin" class="btn btn-primary">立即注册</a>
+                <a href="/admin" class="btn btn-outline-primary">登录</a>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>©2023 短链接服务 | <a href="https://github.com/yourusername/shorturl" target="_blank">GitHub</a></p>
+        </div>
+    </footer>
+    
+    <div class="notifications" id="notifications"></div>
+    
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

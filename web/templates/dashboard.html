@@ -1,115 +1,329 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .title }} - 仪表板</title>
+    <title>{{ .title }} - 控制面板</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/dashboard.css">
-    <!-- 引入Chart.js用于图表显示 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
-    <div class="dashboard-container">
-        <header class="dashboard-header">
-            <h1>短链接管理系统</h1>
-            <div class="user-info">
-                <span>欢迎，{{ .user.Username }}</span>
-                <button id="logoutBtn" class="btn">退出登录</button>
+    <div class="dashboard-layout">
+        <!-- 侧边栏 -->
+        <div class="dashboard-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <i class="bx bx-link-alt"></i>
+                    <h2>短链接系统</h2>
+                </div>
+                <button id="sidebar-toggle" class="sidebar-toggle-btn">
+                    <i class="bx bx-x"></i>
+                </button>
             </div>
-        </header>
-
-        <div class="dashboard-content">
-            <nav class="sidebar">
+            
+            <div class="sidebar-nav">
                 <ul>
-                    <li data-tab="links" class="active">我的链接</li>
-                    <li data-tab="create">创建短链接</li>
-                    <li data-tab="stats">统计数据</li>
+                    <li><a href="#dashboard" class="active" data-tab="dashboard"><i class="bx bx-home"></i> 仪表盘</a></li>
+                    <li><a href="#links" data-tab="links"><i class="bx bx-link"></i> 我的链接</a></li>
+                    <li><a href="#create" data-tab="create"><i class="bx bx-plus-circle"></i> 创建短链接</a></li>
+                    <li><a href="#stats" data-tab="stats"><i class="bx bx-bar-chart-alt-2"></i> 统计分析</a></li>
                     {{ if .user.IsAdmin }}
-                    <li data-tab="admin">管理员面板</li>
+                    <div class="sidebar-divider"></div>
+                    <li><a href="#admin" data-tab="admin"><i class="bx bx-shield-quarter"></i> 管理员面板</a></li>
                     {{ end }}
                 </ul>
-            </nav>
-
-            <main class="content">
-                <!-- 我的链接选项卡 -->
-                <div id="links" class="tab-content active">
-                    <h2>我的链接</h2>
-                    <div class="links-table">
-                        <table>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        {{ slice .user.Username 0 1 }}
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">{{ .user.Username }}</div>
+                        <div class="user-role">{{ if .user.IsAdmin }}管理员{{ else }}用户{{ end }}</div>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="btn btn-danger btn-sm btn-block">退出登录</button>
+            </div>
+        </div>
+        
+        <!-- 主内容区 -->
+        <div class="dashboard-main">
+            <!-- 页头 -->
+            <div class="dashboard-header">
+                <button class="sidebar-toggle-btn" id="menu-toggle">
+                    <i class="bx bx-menu"></i>
+                </button>
+                <h1 class="page-title">欢迎回来，{{ .user.Username }}</h1>
+                <div class="dashboard-actions">
+                    <a href="/" class="btn btn-sm btn-outline-primary">
+                        <i class="bx bx-home"></i> 返回首页
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 内容区域 -->
+            <div class="dashboard-content">
+                <!-- 仪表盘概览 -->
+                <div id="dashboard" class="tab-content active">
+                    <h2 class="mb-4">仪表盘</h2>
+                    
+                    <div class="card-grid mb-4">
+                        <div class="stat-card">
+                            <i class="bx bx-link-alt stat-icon"></i>
+                            <div class="stat-value" id="total-links">-</div>
+                            <div class="stat-label">短链接总数</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <i class="bx bx-show stat-icon"></i>
+                            <div class="stat-value" id="total-visits">-</div>
+                            <div class="stat-label">总访问量</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <i class="bx bx-time stat-icon"></i>
+                            <div class="stat-value" id="active-links">-</div>
+                            <div class="stat-label">活跃链接</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h2>最近创建的链接</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>短链接</th>
+                                        <th>原始链接</th>
+                                        <th>创建时间</th>
+                                        <th>访问量</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-links">
+                                    <tr>
+                                        <td colspan="5" class="text-center">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>最近7天的访问趋势</h2>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="visitsTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 我的链接 -->
+                <div id="links" class="tab-content">
+                    <div class="stats-header mb-4">
+                        <h2>我的链接</h2>
+                        <div class="stats-filter">
+                            <div class="search-container">
+                                <input type="text" id="links-search" class="form-control search-input" placeholder="搜索链接">
+                            </div>
+                            <button id="refresh-links" class="btn btn-outline-primary btn-sm">
+                                <i class="bx bx-refresh"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table">
                             <thead>
                                 <tr>
                                     <th>短链接</th>
                                     <th>原始链接</th>
                                     <th>创建时间</th>
                                     <th>过期时间</th>
-                                    <th>访问次数</th>
+                                    <th>访问量</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody id="links-table-body">
                                 <tr>
-                                    <td colspan="6">加载中...</td>
+                                    <td colspan="6" class="text-center">加载中...</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
+                    
+                    <div id="links-pagination" class="mt-4 text-center">
+                        <!-- 分页控件将动态添加 -->
+                    </div>
                 </div>
-
-                <!-- 创建短链接选项卡 -->
+                
+                <!-- 创建短链接 -->
                 <div id="create" class="tab-content">
-                    <h2>创建短链接</h2>
-                    <div class="create-form">
-                        <div class="form-group">
-                            <label for="create-url">原始URL</label>
-                            <input type="url" id="create-url" placeholder="请输入完整URL，包括http://或https://" required>
+                    <h2 class="mb-4">创建新的短链接</h2>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="create-form">
+                                <div class="form-group">
+                                    <label for="create-url">原始URL</label>
+                                    <input type="url" id="create-url" class="form-control" placeholder="请输入完整URL，包括http://或https://" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="create-expiration">过期时间</label>
+                                    <select id="create-expiration" class="form-control">
+                                        <option value="24h">24小时</option>
+                                        <option value="168h" selected>7天</option>
+                                        <option value="720h">30天</option>
+                                        <option value="2160h">90天</option>
+                                        <option value="8640h">1年</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <button id="create-btn" class="btn btn-primary">创建短链接</button>
+                                </div>
+                            </div>
+                            
+                            <div id="create-result" class="mt-4" style="display: none;">
+                                <div class="result-container">
+                                    <h3 class="mb-3">短链接已创建</h3>
+                                    <div class="new-url-container">
+                                        <div class="new-url" id="new-url-text"></div>
+                                        <button id="copy-new-url" class="btn btn-sm btn-primary">复制</button>
+                                    </div>
+                                    <p class="mt-3 text-muted" id="new-url-expires"></p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="create-expiration">过期时间</label>
-                            <select id="create-expiration">
-                                <option value="24h" selected>24小时</option>
-                                <option value="168h">7天</option>
-                                <option value="720h">30天</option>
-                                <option value="2160h">90天</option>
-                                <option value="8640h">1年</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <button id="create-btn" class="btn">创建短链接</button>
-                        </div>
-                        <div id="create-result" class="create-result"></div>
                     </div>
                 </div>
-
-                <!-- 统计数据选项卡 -->
+                
+                <!-- 统计分析 -->
                 <div id="stats" class="tab-content">
-                    <h2>访问统计</h2>
-                    <div class="stats-selector">
-                        <label for="stats-search">搜索短链接:</label>
-                        <input type="text" id="stats-search" placeholder="输入短链接或原始URL">
-                        <ul id="stats-options" class="stats-options"></ul>
+                    <div class="stats-header mb-4">
+                        <h2>数据统计</h2>
+                        <div class="stats-filter">
+                            <div class="search-container">
+                                <input type="text" id="stats-search" class="form-control search-input" placeholder="搜索短链接">
+                                <div id="stats-options" class="search-results" style="display: none;"></div>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div id="stats-content">
-                        <div class="empty-state">请选择一个短链接查看统计数据</div>
+                        <div class="empty-state">
+                            <i class="bx bx-search empty-icon"></i>
+                            <div class="empty-message">请搜索并选择一个短链接查看详细统计数据</div>
+                        </div>
                     </div>
                 </div>
-
-                <!-- 管理员面板选项卡 -->
+                
+                <!-- 管理员面板 -->
                 {{ if .user.IsAdmin }}
                 <div id="admin" class="tab-content">
-                    <h2>管理员面板</h2>
-                    <div class="admin-stats">
-                        <p>此功能正在开发中...</p>
+                    <h2 class="mb-4">管理员面板</h2>
+                    
+                    <div class="card-grid mb-4">
+                        <div class="stat-card">
+                            <i class="bx bx-user stat-icon"></i>
+                            <div class="stat-value" id="total-users">-</div>
+                            <div class="stat-label">注册用户</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <i class="bx bx-link stat-icon"></i>
+                            <div class="stat-value" id="admin-total-links">-</div>
+                            <div class="stat-label">所有短链接</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <i class="bx bx-time stat-icon"></i>
+                            <div class="stat-value" id="expired-links">-</div>
+                            <div class="stat-label">过期链接</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <i class="bx bx-show stat-icon"></i>
+                            <div class="stat-value" id="admin-total-visits">-</div>
+                            <div class="stat-label">总访问量</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h2>系统维护</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <button id="cleanup-btn" class="btn btn-danger">
+                                        <i class="bx bx-trash"></i> 清理过期链接
+                                    </button>
+                                    <p class="mt-2 text-muted">删除所有已过期的短链接，此操作不可恢复</p>
+                                </div>
+                                <div class="col">
+                                    <button id="backup-btn" class="btn btn-primary">
+                                        <i class="bx bx-download"></i> 导出系统数据
+                                    </button>
+                                    <p class="mt-2 text-muted">导出系统中所有用户和链接数据</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>用户管理</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户名</th>
+                                        <th>邮箱</th>
+                                        <th>注册时间</th>
+                                        <th>链接数量</th>
+                                        <th>最后登录</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table">
+                                    <tr>
+                                        <td colspan="7" class="text-center">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 {{ end }}
-            </main>
+            </div>
         </div>
     </div>
-
+    
+    <!-- 统计详情模态框 -->
+    <div class="modal" id="stats-modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">访问详情</h3>
+                <button class="modal-close" id="close-stats-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="stats-modal-body">
+                <!-- 内容会动态添加 -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- 通知容器 -->
+    <div class="notifications" id="notifications"></div>
+    
     <script src="/static/js/dashboard.js"></script>
 </body>
-
 </html>

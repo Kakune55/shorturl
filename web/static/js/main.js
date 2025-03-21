@@ -6,20 +6,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const shortUrlSpan = document.getElementById('shortUrl');
     const expiresAtSpan = document.getElementById('expiresAt');
     const copyBtn = document.getElementById('copyBtn');
+    const notificationsContainer = document.getElementById('notifications');
     
     // 生成短链接
     generateBtn.addEventListener('click', function() {
         const originalUrl = originalUrlInput.value.trim();
         if (!originalUrl) {
-            alert('请输入有效的URL');
+            showNotification('请输入有效的URL', 'error');
             return;
         }
         
         // 检查URL格式
         if (!originalUrl.match(/^(http|https):\/\/.+/)) {
-            alert('请输入包含http://或https://的完整URL');
+            showNotification('请输入包含http://或https://的完整URL', 'error');
             return;
         }
+        
+        // 显示加载状态
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> 生成中...';
         
         // 请求API创建短链接
         fetch('/api/urls', {
@@ -39,20 +44,33 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
+            // 恢复按钮状态
+            generateBtn.disabled = false;
+            generateBtn.textContent = '生成短链接';
+            
             // 显示结果
-            shortUrlSpan.textContent = data.short_url;
-            shortUrlSpan.href = data.short_url;
+            const fullShortUrl = window.location.origin + '/' + data.short_code;
+            shortUrlSpan.textContent = fullShortUrl;
+            shortUrlSpan.href = fullShortUrl;
             
             // 格式化过期时间
             const expiresAt = new Date(data.expires_at);
-            expiresAtSpan.textContent = expiresAt.toLocaleString();
+            expiresAtSpan.textContent = formatDateTime(expiresAt);
             
             // 显示结果区域
             resultDiv.style.display = 'block';
+            
+            // 显示成功通知
+            showNotification('短链接创建成功！', 'success');
+            
+            // 滚动到结果区域
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
         })
         .catch(error => {
             console.error('错误:', error);
-            alert('生成短链接时出错，请重试');
+            generateBtn.disabled = false;
+            generateBtn.textContent = '生成短链接';
+            showNotification('生成短链接时出错，请重试', 'error');
         });
     });
     
@@ -64,14 +82,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(textToCopy)
                 .then(() => {
-                    copyBtn.textContent = '已复制';
+                    copyBtn.innerHTML = '<i class="bx bx-check"></i> 已复制';
                     setTimeout(() => {
                         copyBtn.textContent = '复制';
                     }, 2000);
+                    showNotification('链接已复制到剪贴板', 'success');
                 })
                 .catch(err => {
                     console.error('复制失败:', err);
-                    alert('复制失败，请手动复制');
+                    showNotification('复制失败，请手动复制', 'error');
                 });
         } else {
             // 后备方案
@@ -82,16 +101,78 @@ document.addEventListener('DOMContentLoaded', function() {
             
             try {
                 document.execCommand('copy');
-                copyBtn.textContent = '已复制';
+                copyBtn.innerHTML = '<i class="bx bx-check"></i> 已复制';
                 setTimeout(() => {
                     copyBtn.textContent = '复制';
                 }, 2000);
+                showNotification('链接已复制到剪贴板', 'success');
             } catch (err) {
                 console.error('复制失败:', err);
-                alert('复制失败，请手动复制');
+                showNotification('复制失败，请手动复制', 'error');
             }
             
             document.body.removeChild(textarea);
         }
     });
+    
+    // 通知系统
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        let icon = 'bx-info-circle';
+        let title = '提示';
+        
+        if (type === 'success') {
+            icon = 'bx-check-circle';
+            title = '成功';
+        } else if (type === 'error') {
+            icon = 'bx-error';
+            title = '错误';
+        }
+        
+        notification.innerHTML = `
+            <div class="notification-header">
+                <span class="notification-title"><i class="bx ${icon}"></i> ${title}</span>
+                <button class="notification-close">&times;</button>
+            </div>
+            <div class="notification-message">${message}</div>
+        `;
+        
+        notificationsContainer.appendChild(notification);
+        
+        // 添加关闭按钮事件
+        const closeBtn = notification.querySelector('.notification-close');
+        closeBtn.addEventListener('click', function() {
+            notification.classList.add('hide');
+            setTimeout(() => {
+                notificationsContainer.removeChild(notification);
+            }, 300);
+        });
+        
+        // 自动关闭通知
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.classList.add('hide');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notificationsContainer.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+    
+    // 格式化日期时间
+    function formatDateTime(date) {
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    }
 });
