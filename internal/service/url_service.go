@@ -21,6 +21,7 @@ const (
 	statsCachePrefix = "stats:"
 	urlTTL           = time.Hour * 24
 	statsTTL         = time.Hour
+	syncInterval     = time.Minute * 10 // 定时同步间隔，可以根据需求调整
 )
 
 // URLService 短链接服务接口
@@ -32,19 +33,111 @@ type URLService interface {
 	GetURLsByUser(ctx context.Context, userID uint) ([]*model.URL, error)
 	GetURLStats(ctx context.Context, shortCode string) (*model.Stats, error)
 	CleanupExpiredURLs(ctx context.Context) (*model.Message, error)
+	Close() // 添加关闭方法以正确关闭同步goroutine
 }
 
 type urlService struct {
-	db    *gorm.DB
-	cache cache.RedisClient
+	db            *gorm.DB
+	cache         cache.RedisClient
+	syncCtx       context.Context
+	syncCtxCancel context.CancelFunc
 }
 
 // NewURLService 创建URL服务
 func NewURLService(db *gorm.DB, cache cache.RedisClient) URLService {
-	return &urlService{
-		db:    db,
-		cache: cache,
+	ctx, cancel := context.WithCancel(context.Background())
+	service := &urlService{
+		db:            db,
+		cache:         cache,
+		syncCtx:       ctx,
+		syncCtxCancel: cancel,
 	}
+
+	// 启动后台同步任务
+	go service.startSyncTask()
+
+	return service
+}
+
+// 启动后台同步任务
+func (s *urlService) startSyncTask() {
+	ticker := time.NewTicker(syncInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// 执行同步任务
+			if err := s.SyncVisitCountsToDB(s.syncCtx); err != nil {
+				logrus.Errorf("同步访问统计数据失败: %v", err)
+			} else {
+				logrus.Info("成功同步访问统计数据到数据库")
+			}
+		case <-s.syncCtx.Done():
+			// 收到取消信号，执行最后一次同步并退出
+			logrus.Info("正在关闭访问统计同步任务，执行最后一次同步...")
+			if err := s.SyncVisitCountsToDB(context.Background()); err != nil {
+				logrus.Errorf("最终同步访问统计数据失败: %v", err)
+			}
+			return
+		}
+	}
+}
+
+// SyncVisitCountsToDB 将Redis中的访问计数同步到数据库
+func (s *urlService) SyncVisitCountsToDB(ctx context.Context) error {
+	if !s.cache.Enabled() {
+		return nil // 如果缓存未启用，则无需同步
+	}
+
+	// 我们将遍历所有已知的短链接，并检查它们的统计数据
+	var urls []model.URL
+	if err := s.db.Select("id, short_code").Find(&urls).Error; err != nil {
+		return fmt.Errorf("获取短链接列表失败: %v", err)
+	}
+
+	syncedCount := 0
+	for _, url := range urls {
+		// 为每个短码检查Redis中是否有访问计数
+		key := statsCachePrefix + url.ShortCode
+		cacheValue, err := s.cache.Get(ctx, key)
+		if err != nil {
+			// 可能是Redis中没有这个键，这是正常情况
+			continue
+		}
+
+		// 解析访问次数
+		var visits int64
+		fmt.Sscanf(cacheValue, "%d", &visits)
+		if visits <= 0 {
+			continue
+		}
+
+		// 更新数据库中的访问计数
+		if err := s.db.Model(&model.URL{}).Where("id = ?", url.ID).
+			UpdateColumn("visits", gorm.Expr("visits + ?", visits)).Error; err != nil {
+			logrus.Errorf("更新短链接 %s 的访问计数失败: %v", url.ShortCode, err)
+			continue
+		}
+
+		// 清除Redis中的计数器，下次从0开始计数
+		if err := s.cache.Set(ctx, key, "0", statsTTL); err != nil {
+			logrus.Warnf("重置短链接 %s 的访问计数失败: %v", url.ShortCode, err)
+		}
+
+		syncedCount++
+	}
+
+	if syncedCount > 0 {
+		logrus.Infof("成功同步 %d 个短链接的访问统计数据", syncedCount)
+	}
+
+	return nil
+}
+
+// Close 关闭服务，停止后台任务
+func (s *urlService) Close() {
+	s.syncCtxCancel()
 }
 
 // CreateShortURL 创建短链接
