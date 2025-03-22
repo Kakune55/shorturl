@@ -16,7 +16,7 @@ type RedisClient interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
-	Incr(ctx context.Context, key string) (int64, error)
+	Incr(ctx context.Context, key string, value ...int64) (int64, error)
 	Close() error
 	Enabled() bool
 }
@@ -35,9 +35,15 @@ func NewRedisClient(cfg *config.Config) (RedisClient, error) {
 	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
+		Addr:         fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     50,              // 调整连接池大小
+		MinIdleConns: 10,              // 保持的最小空闲连接数
+		DialTimeout:  time.Second * 2, // 连接超时
+		ReadTimeout:  time.Second * 2, // 读取超时
+		WriteTimeout: time.Second * 2, // 写入超时
+		PoolTimeout:  time.Second * 3, // 池超时
 	})
 
 	// 测试连接
@@ -91,10 +97,16 @@ func (r *redisClient) Del(ctx context.Context, keys ...string) error {
 }
 
 // Incr 增加计数器
-func (r *redisClient) Incr(ctx context.Context, key string) (int64, error) {
+func (r *redisClient) Incr(ctx context.Context, key string, value ...int64) (int64, error) {
 	if !r.enabled {
 		return 0, fmt.Errorf("Redis未启用")
 	}
+
+	// 默认增加1，如果提供了值则增加指定值
+	if len(value) > 0 && value[0] > 1 {
+		return r.client.IncrBy(ctx, key, value[0]).Result()
+	}
+
 	return r.client.Incr(ctx, key).Result()
 }
 

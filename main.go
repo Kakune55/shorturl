@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"flag"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
+
+	"runtime/debug"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -33,6 +37,9 @@ func main() {
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
 	logrus.SetOutput(os.Stdout)
+
+	// 配置日志级别，降低到INFO，减少DEBUG日志
+	logrus.SetLevel(logrus.InfoLevel)
 
 	// 加载配置
 	cfg, err := config.LoadConfig(*configPath)
@@ -75,18 +82,65 @@ func main() {
 	// 添加默认管理员（如果不存在）
 	createDefaultAdmin(database)
 
+	// GOMAXPROCS设置 - 根据CPU核心数微调
+	numCPU := runtime.NumCPU()
+	runtime.GOMAXPROCS(numCPU + 1) // CPU数量+1通常是最佳设置
+
+	// 配置GC
+	debug.SetGCPercent(500) // 相比默认值(100)减少GC频率，提高吞吐量
+
+	// 调整系统资源限制
+	var rLimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err == nil {
+		rLimit.Cur = rLimit.Max
+		syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	}
+
 	// 设置路由
 	r := router.Setup(urlService, authService, database)
 
 	// 启动HTTP服务器
 	serverAddr := cfg.Server.Host + ":" + strconv.Itoa(cfg.Server.Port)
 	server := &http.Server{
-		Addr:    serverAddr,
-		Handler: r,
+		Addr:              serverAddr,
+		Handler:           r,
+		ReadTimeout:       2 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 1 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+		// 添加TCP保持活动设置
+		ConnState: func(conn net.Conn, state http.ConnState) {
+			if state == http.StateNew && conn.RemoteAddr() != nil {
+				if tcpConn, ok := conn.(*net.TCPConn); ok {
+					tcpConn.SetKeepAlive(true)
+					tcpConn.SetKeepAlivePeriod(30 * time.Second)
+					tcpConn.SetNoDelay(true)
+				}
+			}
+		},
 	}
 
 	// 启动服务器并设置优雅关闭
 	startServerWithGracefulShutdown(server, serverAddr)
+
+	// 添加服务优雅关闭的代码
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-quit
+		logrus.Info("正在关闭服务...")
+
+		// 关闭URL服务以保存数据
+		urlService.Close()
+
+		// 关闭Redis和数据库
+		// ...
+
+		logrus.Info("服务已安全关闭")
+		os.Exit(0)
+	}()
 }
 
 // 启动服务器并处理优雅关闭

@@ -2,6 +2,8 @@ package db
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -19,8 +21,20 @@ func Setup(cfg *config.Config) (*gorm.DB, error) {
 	var db *gorm.DB
 	var err error
 
+	// 配置GORM，优化日志设置
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		// 只记录错误SQL和慢查询
+		Logger: logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			logger.Config{
+				SlowThreshold:             time.Second,  // 慢查询阈值，超过1秒才记录
+				LogLevel:                  logger.Error, // 只记录错误
+				IgnoreRecordNotFoundError: true,         // 忽略记录未找到的错误
+				Colorful:                  false,        // 禁用颜色
+			},
+		),
+		// 启用PreparedStatement以提高性能
+		PrepareStmt: true,
 	}
 
 	switch cfg.Database.Type {
@@ -36,14 +50,17 @@ func Setup(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("连接数据库失败: %v", err)
 	}
 
-	// 配置连接池
+	// 配置连接池 - 针对高并发优化
 	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, fmt.Errorf("获取数据库连接池失败: %v", err)
 	}
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	// 调整连接池参数
+	sqlDB.SetMaxIdleConns(50)               // 增加空闲连接数
+	sqlDB.SetMaxOpenConns(200)              // 增加最大连接数
+	sqlDB.SetConnMaxLifetime(time.Hour * 3) // 延长连接生命周期
+	sqlDB.SetConnMaxIdleTime(time.Hour)     // 设置最大空闲时间
 
 	// 自动迁移数据库结构
 	if err := migrateDatabase(db); err != nil {
@@ -65,9 +82,14 @@ func connectPostgreSQL(dbConfig config.DatabaseConfig, config *gorm.Config) (*go
 }
 
 func migrateDatabase(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&model.URL{},
 		&model.URLVisit{},
 		&model.User{},
-	)
+	); err != nil {
+		return err
+	}
+
+	// 运行额外的迁移脚本创建索引
+	return RunMigrations(db)
 }
